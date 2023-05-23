@@ -1,0 +1,36 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+# Load data\\drive\\1-b6R0mMIboYtMKyuC_1Hy-00ke3pVV9T
+pwt10 = pd.read_stata('https://dataverse.nl/api/access/datafile/354098')
+
+# Filter and select relevant columns
+data = pwt10.loc[pwt10['country'].isin(['United Kingdom'])][['year', 'countrycode', 'rgdpna', 'rkna', 'pop', 'emp', 'avh', 'labsh', 'rtfpna']]
+data = data.loc[(data['year'] >= 1995) & (data['year'] <= 2019)].dropna()
+
+# Calculate additional variables
+data['alpha'] = 1 - data['labsh']
+data['y_n'] = data['rgdpna'] / data['emp']  # Y/N
+data['hours'] = data['emp'] * data['avh']  # L、こいついらないかも（時間のことは課題で触れられてないから）
+data['tfp_term'] = data['rtfpna'] ** (1 / (1 - data['alpha']))  # A^(1/(1-alpha))
+data['cap_term'] = (data['rkna'] / data['rgdpna']) ** (data['alpha'] / (1 - data['alpha']))  # (K/Y)^(alpha/(1-alpha))
+data['lab_term'] = data['hours'] / data['pop']  # L/N、こいついらないかも（時間のことは課題で触れられてないから）
+data = data.sort_values('year').groupby('countrycode').apply(lambda x: x.assign(
+    alpha=1 - x['labsh'],
+    y_n_shifted=100 * x['y_n'] / x['y_n'].iloc[0],
+    tfp_term_shifted=100 * x['tfp_term'] / x['tfp_term'].iloc[0],
+    cap_term_shifted=100 * x['cap_term'] / x['cap_term'].iloc[0],
+    lab_term_shifted=100 * x['lab_term'] / x['lab_term'].iloc[0]#こいついらないかも（時間のことは課題で触れられてないから）
+)).reset_index(drop=True).dropna()
+
+# Print first 10 rows of data
+print(data.head(10))
+
+# Plot data
+plt.plot(data['year'], data['y_n_shifted'], label='y_n_shifted')
+plt.plot(data['year'], data['tfp_term_shifted'], label='tfp_term_shifted')
+plt.plot(data['year'], data['cap_term_shifted'], label='cap_term_shifted')
+plt.plot(data['year'], data['lab_term_shifted'], label='lab_term_shifted')#こいついらないかも
+plt.legend()
+plt.show()
